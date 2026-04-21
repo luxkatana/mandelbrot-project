@@ -1,34 +1,39 @@
-import numpy as np
-import matplotlib.pyplot as plt
+from PIL import Image
+from math import log2
 
-MAX_ITERATION: int = 20
-
-
-def complex_matrix(xmin, xmax, ymin, ymax, pixel_density):
-    re = np.linspace(xmin, xmax, int((xmax - xmin) * pixel_density))
-    im = np.linspace(ymin, ymax, int((ymax - ymin) * pixel_density))
-    return re[np.newaxis, :] + im[:, np.newaxis] * 1j
+MAX_ITERATION: int = 50
 
 
-def is_stable_candidate(c: int):
-    # Stable betekent convergeren naar een bepaalde getal
-    # Dus lim x->inf zorgt ervoor dat je naar een bepaalde getal gaat
-    z = 0
-    for _ in range(0, MAX_ITERATION):
-        z = z**2 + c
-    return abs(z) <= 2
+class MandelbrotSet:
+    escape_radius: float = 1000
+
+    def get_iteration_count(self, c: complex, smooth: bool = False) -> int:
+        z = 0
+        for n in range(MAX_ITERATION):
+            z = z**2 + c
+            if abs(z) > self.escape_radius:
+                if smooth is True:
+                    return n + 1 - log2(abs(z))
+                return n
+        return MAX_ITERATION
+
+    def __contains__(self, c: complex) -> bool:
+        return self.stability(c) == 1
+
+    def stability(self, c: complex, smooth: bool, clamp: bool = True) -> float:
+        stable: float = self.get_iteration_count(c, smooth) / MAX_ITERATION
+        return max(0, min(stable, 1.0)) if clamp else stable
 
 
-def get_members(complex_matrix):
-    mask = is_stable_candidate(complex_matrix)
-    return c[mask]
+mandelbrotset = MandelbrotSet()
 
 
-c = complex_matrix(-2, 0.5, -1.5, 1.5, pixel_density=100)
-members = get_members(c)
-
-plt.scatter(members.real, members.imag, color="black", marker=",", s=1)
-plt.gca().set_aspect("equal")
-plt.axis("off")
-plt.tight_layout()
-plt.show()
+scale = 0.0075
+img = Image.new("L", (512, 512), 1)
+for y in range(0, img.height):
+    for x in range(0, img.width):
+        complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
+        instability: float = 1 - mandelbrotset.stability(complex_number, True)
+        # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
+        img.putpixel((x, y), int(instability * 255))
+img.show()
