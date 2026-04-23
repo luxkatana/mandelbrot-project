@@ -1,7 +1,8 @@
-from PIL import Image
+from PIL import Image, ImageEnhance
 from math import log2
+from viewport import Viewport, Pixel
 
-MAX_ITERATION: int = 50
+MAX_ITERATION: int = 256
 
 
 class MandelbrotSet:
@@ -18,7 +19,7 @@ class MandelbrotSet:
         return MAX_ITERATION
 
     def __contains__(self, c: complex) -> bool:
-        return self.stability(c) == 1
+        return self.stability(c, True) == 1
 
     def stability(self, c: complex, smooth: bool, clamp: bool = True) -> float:
         stable: float = self.get_iteration_count(c, smooth) / MAX_ITERATION
@@ -29,11 +30,16 @@ mandelbrotset = MandelbrotSet()
 
 
 scale = 0.0075
-img = Image.new("L", (512, 512), 1)
-for y in range(0, img.height):
-    for x in range(0, img.width):
-        complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
-        instability: float = 1 - mandelbrotset.stability(complex_number, True)
-        # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
-        img.putpixel((x, y), int(instability * 255))
-img.show()
+image = Image.new("L", (512, 512), 1)
+# for y in range(0, img.height):
+#     for x in range(0, img.width):
+#         complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
+#         instability: float = 1 - mandelbrotset.stability(complex_number, True)
+#         # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
+#         img.putpixel((x, y), int(instability * 255))
+for pixel in Viewport(image, center=-0.74364 + 0.13182733j, width=0.00012068):
+    c = complex(pixel)
+    instability = 1 - mandelbrotset.stability(c, smooth=True)
+    pixel.color = int(instability * 255)
+
+image.show()
