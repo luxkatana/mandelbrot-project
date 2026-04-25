@@ -19,7 +19,21 @@ mod mandelbrotset {
                 max_iteration,
             }
         }
-        fn get_iteration_count(&self, c: &Bound<PyComplex>) -> u16 {
+        fn __contains__(&self, c: &Bound<PyComplex>) -> bool {
+            self.stability(c, true, None) == 1f32
+        }
+
+        fn stability(&self, c: &Bound<PyComplex>, smooth: bool, clamp: Option<bool>) -> f32 {
+            let clamp = clamp.unwrap_or(true);
+            let stable = self.get_iteration_count(c, smooth) / (self.max_iteration as f32);
+            return if clamp {
+                0f32.max(stable.min(1f32))
+            } else {
+                stable
+            };
+        }
+        fn get_iteration_count(&self, c: &Bound<PyComplex>, smooth: bool) -> f32 {
+            // Zo vermijden we externe libraries te gaan gebruiken voor complexe getallen
             let mut z_re: f32 = 0f32;
             let mut z_im: f32 = 0f32;
             let (c_re, c_im): (f32, f32) = (
@@ -32,11 +46,16 @@ mod mandelbrotset {
                 let new_z_im = 2f32 * z_re * z_im + c_im;
                 z_re = new_z_re;
                 z_im = new_z_im;
-                if (z_re.powi(2) + z_im.powi(2)).sqrt() > (self.escape_radius as f32) {
-                    return iteration;
+                let magnitude = (z_re.powi(2) + z_im.powi(2)).sqrt(); // abs(z)
+                if magnitude > (self.escape_radius as f32) {
+                    return if smooth {
+                        (iteration + 1) as f32 - magnitude.log2()
+                    } else {
+                        iteration as f32
+                    };
                 }
             }
-            self.max_iteration
+            self.max_iteration as f32
         }
     }
 }

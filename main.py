@@ -1,5 +1,6 @@
 from PIL import Image
 import matplotlib.cm
+import mandelbrotset as mandel_set
 from time import perf_counter
 from math import log2
 from viewport import Viewport
@@ -38,7 +39,7 @@ def paint(
     smooth: bool = True,
 ):
     for pixel in viewport:
-        stability = mandelbrot.stability(complex(pixel), smooth)
+        stability = mandelbrot.stability(complex(pixel), smooth, True)
         index = int(min(stability * len(palette), len(palette) - 1))
         pixel.color = palette[index % len(palette)]
 
@@ -46,9 +47,6 @@ def paint(
 def denormalize(palette) -> list[tuple]:
     return [(tuple(int(channel * 255) for channel in color)) for color in palette]
 
-
-mandelbrotset = MandelbrotSet()
-img = Image.new("L", (512, 512))
 
 # begin = perf_counter()
 # for y in range(0, img.height):
@@ -62,12 +60,14 @@ img = Image.new("L", (512, 512))
 if __name__ == "__main__":
     palette = denormalize(colormap)
 
-    mandelbrotset = MandelbrotSet()
+    mandelbrotset = mandel_set.MandelbrotSet(1000, MAX_ITERATION)
+    # mandelbrotset = MandelbrotSet()
 
-    FPS = 5
-    TOTAL_SECONDS = 2
+    FPS = 30
+    TOTAL_SECONDS = 10
 
     widths = np.geomspace(0.01, 0.001, FPS * TOTAL_SECONDS)
+    begin = perf_counter()
     for index, width in enumerate(widths):
         print(f"Working on {index}")
         image = Image.new("RGB", (512, 512), 1)
@@ -78,6 +78,8 @@ if __name__ == "__main__":
         paint(mandelbrotset, viewport=viewport, palette=palette)
         with open(f"./img/{index}.jpg", "wb") as file:
             image.save(file)
+    end = perf_counter()
+    print(end - begin)
 
 # for y in range(0, img.height):
 #     for x in range(0, img.width):
