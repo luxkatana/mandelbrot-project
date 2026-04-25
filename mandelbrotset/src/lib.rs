@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 /// A Python module implemented in Rust.
 #[pymodule]
-mod mandelbrotset {
+mod mandelbrot_rust {
     use pyo3::{prelude::*, types::PyComplex};
 
     #[pyclass]

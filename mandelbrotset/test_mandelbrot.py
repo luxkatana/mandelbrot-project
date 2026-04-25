@@ -1,7 +1,6 @@
-import mandelbrotset
-import numpy as np
+import mandelbrot_rust
 
-mandelbrot = mandelbrotset.MandelbrotSet(1000, 256)
+mandelbrot = mandelbrot_rust.MandelbrotSet(1000, 256)
 height = 512
 width = 512
 for x in range(width):

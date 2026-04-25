@@ -1,6 +1,6 @@
 from PIL import Image
 import matplotlib.cm
-import mandelbrotset as mandel_set
+import mandelbrot_rust
 from time import perf_counter
 from math import log2
 from viewport import Viewport
@@ -11,29 +11,8 @@ colormap = matplotlib.cm.get_cmap("viridis").colors
 MAX_ITERATION: int = 256
 
 
-class MandelbrotSet:
-    escape_radius: float = 1000
-
-    def get_iteration_count(self, c: complex, smooth: bool = False) -> int:
-        z = 0
-        for n in range(MAX_ITERATION):
-            z = z**2 + c
-            if abs(z) > self.escape_radius:
-                if smooth is True:
-                    return n + 1 - log2(abs(z))
-                return n
-        return MAX_ITERATION
-
-    def __contains__(self, c: complex) -> bool:
-        return self.stability(c, True) == 1
-
-    def stability(self, c: complex, smooth: bool, clamp: bool = True) -> float:
-        stable: float = self.get_iteration_count(c, smooth) / MAX_ITERATION
-        return max(0, min(stable, 1.0)) if clamp else stable
-
-
 def paint(
-    mandelbrot: MandelbrotSet,
+    mandelbrot,
     viewport: Viewport,
     palette: tuple[int, ...],
     smooth: bool = True,
@@ -60,8 +39,7 @@ def denormalize(palette) -> list[tuple]:
 if __name__ == "__main__":
     palette = denormalize(colormap)
 
-    mandelbrotset = mandel_set.MandelbrotSet(1000, MAX_ITERATION)
-    # mandelbrotset = MandelbrotSet()
+    mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, MAX_ITERATION)
 
     FPS = 30
     TOTAL_SECONDS = 10
