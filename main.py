@@ -50,15 +50,15 @@ def denormalize(palette) -> list[tuple]:
 mandelbrotset = MandelbrotSet()
 img = Image.new("L", (512, 512))
 
-begin = perf_counter()
-for y in range(0, img.height):
-    for x in range(0, img.width):
-        complex_number = complex(x - img.width / 2, img.height / 2 - y)
-        (mandelbrotset.get_iteration_count(complex_number, False))
-
-print((perf_counter() - begin) * 1000)
-
-exit(0)
+# begin = perf_counter()
+# for y in range(0, img.height):
+#     for x in range(0, img.width):
+#         complex_number = complex(x - img.width / 2, img.height / 2 - y)
+#         (mandelbrotset.get_iteration_count(complex_number, False))
+#
+# print((perf_counter() - begin) * 1000)
+#
+# exit(0)
 if __name__ == "__main__":
     palette = denormalize(colormap)
 
@@ -67,12 +67,6 @@ if __name__ == "__main__":
     FPS = 5
     TOTAL_SECONDS = 2
 
-    # for y in range(0, img.height):
-    #     for x in range(0, img.width):
-    #         complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
-    #         instability: float = 1 - mandelbrotset.stability(complex_number, True)
-    #         # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
-    #         img.putpixel((x, y), int(instability * 255))
     widths = np.geomspace(0.01, 0.001, FPS * TOTAL_SECONDS)
     for index, width in enumerate(widths):
         print(f"Working on {index}")
@@ -84,3 +78,10 @@ if __name__ == "__main__":
         paint(mandelbrotset, viewport=viewport, palette=palette)
         with open(f"./img/{index}.jpg", "wb") as file:
             image.save(file)
+
+# for y in range(0, img.height):
+#     for x in range(0, img.width):
+#         complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
+#         instability: float = 1 - mandelbrotset.stability(complex_number, True)
+#         # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
+#         img.putpixel((x, y), int(instability * 255))
