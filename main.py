@@ -1,7 +1,9 @@
 from PIL import Image
 import matplotlib.cm
+from time import perf_counter
 from math import log2
 from viewport import Viewport
+import numpy as np
 
 colormap = matplotlib.cm.get_cmap("viridis").colors
 
@@ -45,19 +47,40 @@ def denormalize(palette) -> list[tuple]:
     return [(tuple(int(channel * 255) for channel in color)) for color in palette]
 
 
-palette = denormalize(colormap)
-
 mandelbrotset = MandelbrotSet()
+img = Image.new("L", (512, 512))
 
+begin = perf_counter()
+for y in range(0, img.height):
+    for x in range(0, img.width):
+        complex_number = complex(x - img.width / 2, img.height / 2 - y)
+        (mandelbrotset.get_iteration_count(complex_number, False))
 
-image = Image.new("RGB", (512, 512), 1)
-# for y in range(0, img.height):
-#     for x in range(0, img.width):
-#         complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
-#         instability: float = 1 - mandelbrotset.stability(complex_number, True)
-#         # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
-#         img.putpixel((x, y), int(instability * 255))
-viewport = Viewport(image, center=-0.74364 + 0.13182733j, width=0.00012068)
+print((perf_counter() - begin) * 1000)
 
-paint(mandelbrotset, viewport=viewport, palette=palette)
-image.show()
+exit(0)
+if __name__ == "__main__":
+    palette = denormalize(colormap)
+
+    mandelbrotset = MandelbrotSet()
+
+    FPS = 5
+    TOTAL_SECONDS = 2
+
+    # for y in range(0, img.height):
+    #     for x in range(0, img.width):
+    #         complex_number = scale * complex(x - img.width / 2, img.height / 2 - y)
+    #         instability: float = 1 - mandelbrotset.stability(complex_number, True)
+    #         # Op de schaal van 0 tot 1: Hoe INSTABIEL is de complexe getal?
+    #         img.putpixel((x, y), int(instability * 255))
+    widths = np.geomspace(0.01, 0.001, FPS * TOTAL_SECONDS)
+    for index, width in enumerate(widths):
+        print(f"Working on {index}")
+        image = Image.new("RGB", (512, 512), 1)
+        viewport = Viewport(
+            image, center=(-0.743643887037151 + 0.13182590420533j), width=width
+        )
+
+        paint(mandelbrotset, viewport=viewport, palette=palette)
+        with open(f"./img/{index}.jpg", "wb") as file:
+            image.save(file)
