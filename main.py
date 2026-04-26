@@ -2,7 +2,6 @@ from PIL import Image
 import matplotlib.cm
 import mandelbrot_rust
 from time import perf_counter
-from math import log2
 from viewport import Viewport
 import numpy as np
 
