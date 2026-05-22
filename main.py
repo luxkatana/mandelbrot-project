@@ -1,14 +1,21 @@
 from PIL import Image
 import matplotlib.cm
 import mandelbrot_rust
-import cv2
 from time import perf_counter
 from viewport import Viewport
+from threading import Thread
 import numpy as np
+import cv2
 
 colormap = matplotlib.cm.get_cmap("viridis").colors
 
 MAX_ITERATION: int = 256
+
+FPS = 30
+TOTAL_SECONDS = 10
+WIDTH = 512
+HEIGHT = 512
+N_SEGMENTS: int = 14
 
 
 def paint(
@@ -37,21 +44,54 @@ def denormalize(palette) -> list[tuple]:
 #
 # exit(0)
 
+video = cv2.VideoWriter(
+    "./output.mp4", cv2.VideoWriter_fourcc(*"MP4V"), FPS, (WIDTH, HEIGHT)
+)
+mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, MAX_ITERATION)
+palette = denormalize(colormap)
+
+
+def generate_from_segment(segment: list[float], idx: int, results: list):
+    result = []
+    for index, width in enumerate(segment):
+        img = Image.new("RGB", (512, 512), 1)
+        viewport = Viewport(
+            img, center=(-0.743643887037151 + 0.13182590420533j), width=width
+        )
+        paint(mandelbrotset, viewport, palette)  # Hier wordt gegenereerd
+        print(f"Thread {idx}: {index}/{len(segment)}")
+        result.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
+    results[idx] = result
+
+
 if __name__ == "__main__":
-    palette = denormalize(colormap)
-
-    mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, MAX_ITERATION)
-
-    FPS = 30
-    TOTAL_SECONDS = 10
-    WIDTH = 512
-    HEIGHT = 512
-    video = cv2.VideoWriter(
-        "./output.mp4", cv2.VideoWriter_fourcc(*"MP4V"), FPS, (WIDTH, HEIGHT)
-    )
 
     widths = np.geomspace(0.01, 0.001, FPS * TOTAL_SECONDS)
+
+    segments: list[np.ndarray] = np.array_split(widths, N_SEGMENTS)
+    allthreads: list[Thread] = []
     begin = perf_counter()
+    results = []
+    for index, segment in enumerate(segments):
+        t = Thread(target=generate_from_segment, args=(segment, index, results))
+        allthreads.append(t)
+        t.start()
+        results.append(0)
+    for thread in allthreads:
+        thread.join()
+
+    print("Compute finish")
+    for part in results:
+        part: list[list]
+        for image in part:
+            video.write(image)
+    video.release()
+
+    print("Everything finished.")
+    print(type(results[0]))
+    print(perf_counter() - begin)
+    exit(0)
+
     for index, width in enumerate(widths):
         print(f"Working on {index}")
         image = Image.new("RGB", (WIDTH, HEIGHT), 1)
