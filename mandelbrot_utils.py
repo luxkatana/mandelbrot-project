@@ -16,6 +16,7 @@ TOTAL_SECONDS = 10
 WIDTH = 512
 HEIGHT = 512
 N_SEGMENTS: int = 14
+CENTER: complex = -0.743643887037151 + 0.13182590420533j
 
 
 def paint(
@@ -54,10 +55,8 @@ palette = denormalize(colormap)
 def generate_from_segment(segment: list[float], idx: int, results: list):
     result = []
     for index, width in enumerate(segment):
-        img = Image.new("RGB", (512, 512), 1)
-        viewport = Viewport(
-            img, center=(-0.743643887037151 + 0.13182590420533j), width=width
-        )
+        img = Image.new("RGB", (WIDTH, HEIGHT), 1)
+        viewport = Viewport(img, center=CENTER, width=width)
         paint(mandelbrotset, viewport, palette)  # Hier wordt gegenereerd
         print(f"Thread {idx}: {index}/{len(segment)}")
         result.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
@@ -71,7 +70,7 @@ def create_segments(amount_of_segments: int) -> list[list[float]]:
 
 
 if __name__ == "__main__":
-    segments = compute_segments(N_SEGMENTS)
+    segments = generate_from_segment(N_SEGMENTS)
 
     allthreads: list[Thread] = []
     begin = perf_counter()

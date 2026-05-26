@@ -1,12 +1,12 @@
 from fastapi import (
     FastAPI,
     WebSocket,
-    WebSocketDisconnect,
     WebSocketException,
     status,
 )
-from mandelbrot_utils import create_segments
+from mandelbrot_utils import CENTER, HEIGHT, MAX_ITERATION, WIDTH, create_segments
 import ftp
+from threading import Thread
 import numpy as np
 from threading import Lock
 import asyncio
@@ -31,7 +31,15 @@ async def background():
         segment: np.ndarray = segments[index]
         user, password = ftp.create_user(authorizer)
         await client.send_json(
-            {"segment": segment.tolist(), "user": user, "password": password}
+            {
+                "segment": segment.tolist(),
+                "user": user,
+                "password": password,
+                "center_re": CENTER.real,
+                "center_im": CENTER.imag,
+                "resolution": [WIDTH, HEIGHT],
+                "max_iteration": MAX_ITERATION,
+            }
         )  # JSON list of floats
 
         print("Data sent to client ", index)
@@ -39,7 +47,7 @@ async def background():
 
     ftpserver = ftp.create_ftp_server(authorizer, FTP_ADDR)
     print("Ftp running")
-    ftpserver.serve_forever()
+    Thread(target=ftpserver.serve_forever).start()
     print("FTP closed")
 
 
@@ -58,5 +66,5 @@ async def attend(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             print(data)
-    except WebSocketDisconnect:
+    except Exception:
         ...
