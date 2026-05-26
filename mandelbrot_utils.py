@@ -64,11 +64,15 @@ def generate_from_segment(segment: list[float], idx: int, results: list):
     results[idx] = result
 
 
-if __name__ == "__main__":
-
+def create_segments(amount_of_segments: int) -> list[list[float]]:
     widths = np.geomspace(0.01, 0.001, FPS * TOTAL_SECONDS)
 
-    segments: list[np.ndarray] = np.array_split(widths, N_SEGMENTS)
+    return np.array_split(widths, amount_of_segments)
+
+
+if __name__ == "__main__":
+    segments = compute_segments(N_SEGMENTS)
+
     allthreads: list[Thread] = []
     begin = perf_counter()
     results = []
