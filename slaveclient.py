@@ -1,4 +1,6 @@
 import websockets, asyncio, json
+from io import BytesIO, FileIO
+from ftplib import FTP
 from PIL import Image
 import mandelbrot_utils
 import mandelbrot_rust
@@ -6,7 +8,7 @@ import rich
 
 from viewport import Viewport
 
-MASTER = ("127.0.0.1", 8000)
+MASTER = ("0.0.0.0", 8000)
 
 
 async def main():
@@ -37,6 +39,18 @@ async def main():
         result.append(img)
 
     rich.print(payloaddata)
+    ftpclient = FTP()
+    ftpclient.connect(MASTER[0], 2000)
+    ftpclient.login(payloaddata["user"], payloaddata["password"])
+
+    for index, img in enumerate(result):
+        with BytesIO() as f:
+            img.save(f, format="JPEG")
+            f.flush()
+            ftpclient.storbinary(f"STOR {payloaddata['segment'][index]}.jpg", f)
+            print(f"Stored {index}/{len(result)}")
+
+    ftpclient.close()
 
 
 if __name__ == "__main__":
