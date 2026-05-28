@@ -42,13 +42,11 @@ async def background():
             }
         )  # JSON list of floats
 
-        print("Data sent to client ", index)
-        await client.close()
+        # await client.close()
 
     ftpserver = ftp.create_ftp_server(authorizer, FTP_ADDR)
     print("Ftp running")
     Thread(target=ftpserver.serve_forever).start()
-    print("FTP closed")
 
 
 @api.websocket("/attend")
@@ -60,11 +58,13 @@ async def attend(websocket: WebSocket):
         )  # Late, already computing.
     api.attendees.add(websocket)
     if len(api.attendees) == 1:  # Starting server.
-        print("Start")
         await asyncio.create_task(background())
     try:
         while True:
             data = await websocket.receive_text()
-            print(data)
+            if data == "finish":
+                await websocket.close()
+                break
+
     except Exception:
         ...
