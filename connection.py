@@ -1,6 +1,7 @@
 from fastapi import (
     FastAPI,
     WebSocket,
+    WebSocketDisconnect,
     WebSocketException,
     status,
 )
@@ -13,8 +14,11 @@ import asyncio
 
 api = FastAPI()
 # api.attendees: set[WebSocket]
-api.attendees = set()
+api.attendees = []
 ongoingLock = Lock()
+attendeeslistLock = Lock()
+
+api.segments = []
 FTP_ADDR = ("127.0.0.1", 2000)
 
 
@@ -25,6 +29,7 @@ async def background():
     ongoingLock.acquire_lock()  # Locked
     print(f"len(api.attendees): {len(api.attendees)}")
     segments = create_segments(len(api.attendees))
+    api.segments = segments
 
     for index, client in enumerate(api.attendees):
         client: WebSocket
@@ -56,15 +61,22 @@ async def attend(websocket: WebSocket):
         raise WebSocketException(
             status.WS_1013_TRY_AGAIN_LATER
         )  # Late, already computing.
-    api.attendees.add(websocket)
+    api.attendees.append(websocket)
     if len(api.attendees) == 1:  # Starting server.
         await asyncio.create_task(background())
     try:
         while True:
-            data = await websocket.receive_text()
-            if data == "finish":
-                await websocket.close()
-                break
+            try:
+                data = await websocket.receive_text()
+            except WebSocketDisconnect as e:
+                if e.code == 1000:
+                    attendeeslistLock.acquire()
+                    del api.attendees[api.attendees.index(websocket)]
+                    attendeeslistLock.release()
+                    await websocket.close()
+                    if len(api.attendees) == 0:
+                        print("Finished")
+                    break
 
     except Exception:
         ...
