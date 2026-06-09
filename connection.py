@@ -1,3 +1,4 @@
+import threading
 from fastapi import (
     FastAPI,
     WebSocket,
@@ -5,9 +6,11 @@ from fastapi import (
     WebSocketException,
     status,
 )
-from mandelbrot_utils import CENTER, HEIGHT, MAX_ITERATION, WIDTH, create_segments
+from mandelbrot_utils import CENTER, FPS, HEIGHT, MAX_ITERATION, WIDTH, create_segments
+import cv2
 import ftp
 from threading import Thread
+import progressbar
 import numpy as np
 from threading import Lock
 import asyncio
@@ -19,7 +22,7 @@ ongoingLock = Lock()
 attendeeslistLock = Lock()
 
 api.segments = []
-FTP_ADDR = ("127.0.0.1", 2000)
+FTP_ADDR = ("0.0.0.0", 3000)
 
 
 async def background():
@@ -54,6 +57,19 @@ async def background():
     Thread(target=ftpserver.serve_forever).start()
 
 
+def merge_ftp_result():
+    output = cv2.VideoWriter(
+        "./output.mp4", cv2.VideoWriter_fourcc(*"MP4V"), FPS, (WIDTH, HEIGHT)
+    )
+    for segment in progressbar.progressbar(api.segments):
+        for frame in segment:
+            frame: float
+            img = cv2.imread(f"./mandelbrot_buffer/{frame}.jpg", cv2.IMREAD_COLOR)
+            output.write(img)
+    output.release()
+    print("Finished.")
+
+
 @api.websocket("/attend")
 async def attend(websocket: WebSocket):
     await websocket.accept()
@@ -64,19 +80,16 @@ async def attend(websocket: WebSocket):
     api.attendees.append(websocket)
     if len(api.attendees) == 1:  # Starting server.
         await asyncio.create_task(background())
-    try:
-        while True:
-            try:
-                data = await websocket.receive_text()
-            except WebSocketDisconnect as e:
-                if e.code == 1000:
-                    attendeeslistLock.acquire()
-                    del api.attendees[api.attendees.index(websocket)]
-                    attendeeslistLock.release()
-                    await websocket.close()
-                    if len(api.attendees) == 0:
-                        print("Finished")
-                    break
-
-    except Exception:
-        ...
+    while True:
+        try:
+            await websocket.receive_text()
+        except WebSocketDisconnect as e:
+            print("Reason: ", e.code)
+            if e.code == 1000:
+                attendeeslistLock.acquire()
+                del api.attendees[api.attendees.index(websocket)]
+                attendeeslistLock.release()
+                if len(api.attendees) == 0:
+                    print("Start merging")
+                    threading.Thread(target=merge_ftp_result).start()
+                break

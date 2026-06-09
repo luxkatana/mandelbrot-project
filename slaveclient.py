@@ -1,5 +1,4 @@
 from concurrent.futures import ProcessPoolExecutor
-import multiprocessing
 import websockets, asyncio, json
 from io import BytesIO
 import progressbar
@@ -11,6 +10,7 @@ import mandelbrot_rust
 from viewport import Viewport
 
 MASTER = ("0.0.0.0", 8000)
+FTP_PORT = 3000
 
 
 def compute(center: complex, payloaddata: dict):
@@ -24,7 +24,7 @@ def compute(center: complex, payloaddata: dict):
         result.append(img)
 
     ftpclient = FTP()
-    ftpclient.connect(MASTER[0], 2000)
+    ftpclient.connect(MASTER[0], FTP_PORT)
     ftpclient.login(payloaddata["user"], payloaddata["password"])
     print("Storing in ftp")
     for index, img in progressbar.progressbar(enumerate(result)):

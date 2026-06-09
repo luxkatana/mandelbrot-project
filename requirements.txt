@@ -2,3 +2,5 @@ Pillow
 matplotlib
 numpy
 opencv-python
+progressbar2
+websockets
