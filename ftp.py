@@ -17,7 +17,7 @@ if HOMEDIR is None:
 
 length: int
 random_string = lambda length: "".join(
-    [choice(string.printable) for _ in range(length)]
+    [choice(string.ascii_letters + string.digits) for _ in range(length)]
 )
 
 
@@ -28,7 +28,7 @@ def create_authorizer():
 def create_user(authorizer: DummyAuthorizer) -> tuple[str, str]:
     user = random_string(10)
     password = random_string(20)
-    authorizer.add_user(user, password, HOMEDIR, "w")
+    authorizer.add_user(user, password, HOMEDIR, "wl")
     return (user, password)
 
 

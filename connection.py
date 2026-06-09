@@ -1,3 +1,4 @@
+import threading
 from fastapi import (
     FastAPI,
     WebSocket,
@@ -5,17 +6,23 @@ from fastapi import (
     WebSocketException,
     status,
 )
-from mandelbrot_utils import create_segments
+from mandelbrot_utils import CENTER, FPS, HEIGHT, MAX_ITERATION, WIDTH, create_segments
+import cv2
 import ftp
+from threading import Thread
+import progressbar
 import numpy as np
 from threading import Lock
 import asyncio
 
 api = FastAPI()
 # api.attendees: set[WebSocket]
-api.attendees = set()
+api.attendees = []
 ongoingLock = Lock()
-FTP_ADDR = ("127.0.0.1", 2000)
+attendeeslistLock = Lock()
+
+api.segments = []
+FTP_ADDR = ("0.0.0.0", 3000)
 
 
 async def background():
@@ -25,22 +32,42 @@ async def background():
     ongoingLock.acquire_lock()  # Locked
     print(f"len(api.attendees): {len(api.attendees)}")
     segments = create_segments(len(api.attendees))
+    api.segments = segments
 
     for index, client in enumerate(api.attendees):
         client: WebSocket
         segment: np.ndarray = segments[index]
         user, password = ftp.create_user(authorizer)
         await client.send_json(
-            {"segment": segment.tolist(), "user": user, "password": password}
+            {
+                "segment": segment.tolist(),
+                "user": user,
+                "password": password,
+                "center_re": CENTER.real,
+                "center_im": CENTER.imag,
+                "resolution": [WIDTH, HEIGHT],
+                "max_iteration": MAX_ITERATION,
+            }
         )  # JSON list of floats
 
-        print("Data sent to client ", index)
-        await client.close()
+        # await client.close()
 
     ftpserver = ftp.create_ftp_server(authorizer, FTP_ADDR)
     print("Ftp running")
-    ftpserver.serve_forever()
-    print("FTP closed")
+    Thread(target=ftpserver.serve_forever).start()
+
+
+def merge_ftp_result():
+    output = cv2.VideoWriter(
+        "./output.mp4", cv2.VideoWriter_fourcc(*"MP4V"), FPS, (WIDTH, HEIGHT)
+    )
+    for segment in progressbar.progressbar(api.segments):
+        for frame in segment:
+            frame: float
+            img = cv2.imread(f"./mandelbrot_buffer/{frame}.jpg", cv2.IMREAD_COLOR)
+            output.write(img)
+    output.release()
+    print("Finished.")
 
 
 @api.websocket("/attend")
@@ -50,13 +77,19 @@ async def attend(websocket: WebSocket):
         raise WebSocketException(
             status.WS_1013_TRY_AGAIN_LATER
         )  # Late, already computing.
-    api.attendees.add(websocket)
+    api.attendees.append(websocket)
     if len(api.attendees) == 1:  # Starting server.
-        print("Start")
         await asyncio.create_task(background())
-    try:
-        while True:
-            data = await websocket.receive_text()
-            print(data)
-    except WebSocketDisconnect:
-        ...
+    while True:
+        try:
+            await websocket.receive_text()
+        except WebSocketDisconnect as e:
+            print("Reason: ", e.code)
+            if e.code == 1000:
+                attendeeslistLock.acquire()
+                del api.attendees[api.attendees.index(websocket)]
+                attendeeslistLock.release()
+                if len(api.attendees) == 0:
+                    print("Start merging")
+                    threading.Thread(target=merge_ftp_result).start()
+                break
