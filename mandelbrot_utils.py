@@ -12,7 +12,7 @@ colormap = matplotlib.cm.get_cmap("viridis").colors
 MAX_ITERATION: int = 256
 
 FPS = 30
-TOTAL_SECONDS = 2
+TOTAL_SECONDS = 60
 WIDTH = 512
 HEIGHT = 512
 N_SEGMENTS: int = 14
@@ -46,7 +46,7 @@ def denormalize(palette) -> list[tuple]:
 # exit(0)
 
 video = cv2.VideoWriter(
-    "./output.mp4", cv2.VideoWriter_fourcc(*"MP4V"), FPS, (WIDTH, HEIGHT)
+    "./output.mp4", cv2.VideoWriter_fourcc(*"mp4v"), FPS, (WIDTH, HEIGHT)
 )
 mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, MAX_ITERATION)
 palette = denormalize(colormap)

@@ -1,4 +1,4 @@
-import threading
+import os
 from fastapi import (
     FastAPI,
     WebSocket,
@@ -6,6 +6,7 @@ from fastapi import (
     WebSocketException,
     status,
 )
+import signal
 from mandelbrot_utils import CENTER, FPS, HEIGHT, MAX_ITERATION, WIDTH, create_segments
 import cv2
 import ftp
@@ -18,6 +19,7 @@ import asyncio
 api = FastAPI()
 # api.attendees: set[WebSocket]
 api.attendees = []
+api.ftpserver = None
 ongoingLock = Lock()
 attendeeslistLock = Lock()
 
@@ -53,21 +55,22 @@ async def background():
         # await client.close()
 
     ftpserver = ftp.create_ftp_server(authorizer, FTP_ADDR)
+    api.ftpserver = ftpserver
     print("Ftp running")
     Thread(target=ftpserver.serve_forever).start()
 
 
-def merge_ftp_result():
+async def merge_ftp_result():
     output = cv2.VideoWriter(
-        "./output.mp4", cv2.VideoWriter_fourcc(*"MP4V"), FPS, (WIDTH, HEIGHT)
+        "./output.mp4", cv2.VideoWriter_fourcc(*"mp4v"), FPS, (WIDTH, HEIGHT)
     )
     for segment in progressbar.progressbar(api.segments):
         for frame in segment:
             frame: float
-            img = cv2.imread(f"./mandelbrot_buffer/{frame}.jpg", cv2.IMREAD_COLOR)
+            img = cv2.imread(f"./mandelbrot_buffer/{frame}.jpg")
             output.write(img)
     output.release()
-    print("Finished.")
+    output = None
 
 
 @api.websocket("/attend")
@@ -90,6 +93,7 @@ async def attend(websocket: WebSocket):
                 del api.attendees[api.attendees.index(websocket)]
                 attendeeslistLock.release()
                 if len(api.attendees) == 0:
-                    print("Start merging")
-                    threading.Thread(target=merge_ftp_result).start()
+                    api.ftpserver.close()
+                    asyncio.create_task(merge_ftp_result())
+                    os.kill(os.getpid(), signal.SIGTERM)
                 break
