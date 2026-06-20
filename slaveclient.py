@@ -60,6 +60,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    print(f"Spawning {N_PROCESSES} processes.")
     processes: set[multiprocessing.Process] = set()
     for _ in range(N_PROCESSES):
         process = multiprocessing.Process(target=lambda: asyncio.run(main()))
