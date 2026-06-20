@@ -12,6 +12,7 @@ import cv2
 import ftp
 from threading import Thread
 import progressbar
+from time import perf_counter
 import numpy as np
 from threading import Lock
 import asyncio
@@ -20,6 +21,7 @@ api = FastAPI()
 # api.attendees: set[WebSocket]
 api.attendees = []
 api.ftpserver = None
+api.begin_time = perf_counter()
 ongoingLock = Lock()
 attendeeslistLock = Lock()
 
@@ -94,6 +96,11 @@ async def attend(websocket: WebSocket):
                 attendeeslistLock.release()
                 if len(api.attendees) == 0:
                     api.ftpserver.close()
+                    print(
+                        "Time taken for computation: {} seconds".format(
+                            perf_counter() - api.begin_time
+                        )
+                    )
                     asyncio.create_task(merge_ftp_result())
                     os.kill(os.getpid(), signal.SIGTERM)
                 break

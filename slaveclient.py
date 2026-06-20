@@ -4,6 +4,7 @@ from io import BytesIO
 import progressbar
 from ftplib import FTP
 from PIL import Image
+import multiprocessing
 import mandelbrot_utils
 import mandelbrot_rust
 
@@ -11,6 +12,7 @@ from viewport import Viewport
 
 MASTER = ("0.0.0.0", 8000)
 FTP_PORT = 3000
+N_PROCESSES: int = 5
 
 
 def compute(center: complex, payloaddata: dict):
@@ -26,7 +28,7 @@ def compute(center: complex, payloaddata: dict):
     ftpclient = FTP()
     ftpclient.connect(MASTER[0], FTP_PORT)
     ftpclient.login(payloaddata["user"], payloaddata["password"])
-    print("Storing in ftp")
+    print("Sending files with ftp...")
     for index, img in progressbar.progressbar(enumerate(result)):
         with BytesIO() as f:
             img.save(f, format="JPEG")
@@ -58,4 +60,13 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print(f"Spawning {N_PROCESSES} processes.")
+    processes: set[multiprocessing.Process] = set()
+    for _ in range(N_PROCESSES):
+        process = multiprocessing.Process(target=lambda: asyncio.run(main()))
+        process.start()
+        processes.add(process)
+    for process in processes:
+        process.join()
+
+    # asyncio.run(main())
