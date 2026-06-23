@@ -16,13 +16,16 @@ from viewport import Viewport
 MASTER = ("0.0.0.0", 8000)
 FTP_PORT = 3000
 N_PROCESSES: int = -1
-if N_PROCESSES == -1:
-    print(
-        f"N_PROCESSES = multiprocessing.cpu_count() # Which is {cpu_count()}, using all cores"
-    )
-    N_PROCESSES = cpu_count()
-elif N_PROCESSES > cpu_count():
-    warnings.warn(f"N_processes is higher than cpu_count, which may cause problems.")
+if __name__ == "__main__":
+    if N_PROCESSES == -1:
+        print(
+            f"N_PROCESSES = multiprocessing.cpu_count() # Which is {cpu_count()}, using all cores"
+        )
+        N_PROCESSES = cpu_count()
+    elif N_PROCESSES > cpu_count():
+        warnings.warn(
+            f"N_processes is higher than cpu_count, which may cause problems."
+        )
 
 
 def compute(center: complex, payloaddata: dict, transmitter: Connection, pid: int):
