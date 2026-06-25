@@ -17,14 +17,17 @@ N_PROCESSES: int = 5
 
 def compute(center: complex, payloaddata: dict):
     mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, payloaddata["max_iteration"])
-    result: list[Image.Image] = []
-    for width in progressbar.progressbar(payloaddata["segment"]):
+
+    def paint(width: float) -> Image.Image:
         img = Image.new("RGB", payloaddata["resolution"], 1)
         width: float
         viewport = Viewport(img, center=center, width=width)
         mandelbrot_utils.paint(mandelbrotset, viewport, mandelbrot_utils.palette)
-        result.append(img)
+        return img
 
+    with multiprocessing.Pool(N_PROCESSES) as pool:
+        print(f"Spaning {N_PROCESSES} processses")
+        result = pool.map(paint, progressbar.progressbar(payloaddata["segment"]))
     ftpclient = FTP()
     ftpclient.connect(MASTER[0], FTP_PORT)
     ftpclient.login(payloaddata["user"], payloaddata["password"])
@@ -60,13 +63,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    print(f"Spawning {N_PROCESSES} processes.")
-    processes: set[multiprocessing.Process] = set()
-    for _ in range(N_PROCESSES):
-        process = multiprocessing.Process(target=lambda: asyncio.run(main()))
-        process.start()
-        processes.add(process)
-    for process in processes:
-        process.join()
-
-    # asyncio.run(main())
+    asyncio.run(main())
