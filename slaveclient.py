@@ -1,7 +1,9 @@
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 import websockets, asyncio, json
 from io import BytesIO
 import progressbar
+from time import perf_counter
 from ftplib import FTP
 from PIL import Image
 import multiprocessing
@@ -15,19 +17,31 @@ FTP_PORT = 3000
 N_PROCESSES: int = 5
 
 
-def compute(center: complex, payloaddata: dict):
+def m_paint(payloaddata: dict, width: float) -> Image.Image:
     mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, payloaddata["max_iteration"])
+    img = Image.new("RGB", payloaddata["resolution"], 1)
+    viewport = Viewport(
+        img,
+        center=complex(payloaddata["center_re"], payloaddata["center_im"]),
+        width=width,
+    )
+    mandelbrot_utils.paint(mandelbrotset, viewport, mandelbrot_utils.palette)
+    return img
 
-    def paint(width: float) -> Image.Image:
-        img = Image.new("RGB", payloaddata["resolution"], 1)
-        width: float
-        viewport = Viewport(img, center=center, width=width)
-        mandelbrot_utils.paint(mandelbrotset, viewport, mandelbrot_utils.palette)
-        return img
+
+def compute(payloaddata: dict):
+    painting_modified = partial(m_paint, payloaddata)
 
     with multiprocessing.Pool(N_PROCESSES) as pool:
-        print(f"Spaning {N_PROCESSES} processses")
-        result = pool.map(paint, progressbar.progressbar(payloaddata["segment"]))
+        print(f"Spawning {N_PROCESSES} processses")
+        begin = perf_counter()
+        result = pool.map(
+            painting_modified,
+            payloaddata["segment"],
+        )
+        end = perf_counter()
+        print(f"Time taken for computation: {(end - begin):.2f} seconds")
+
     ftpclient = FTP()
     ftpclient.connect(MASTER[0], FTP_PORT)
     ftpclient.login(payloaddata["user"], payloaddata["password"])
@@ -44,6 +58,7 @@ async def main():
     async with websockets.connect(
         f"ws://{MASTER[0]}:{MASTER[1]}/attend", ping_interval=None
     ) as wsclient:
+        print("Connected, awaiting.")
         payloaddata = await wsclient.recv()
         payloaddata: dict[str] = json.loads(payloaddata)
         """
@@ -56,10 +71,9 @@ async def main():
          "resolution": [width, height] # list[int, int]
         }
         """
-        center = complex(payloaddata["center_re"], payloaddata["center_im"])
         loop = asyncio.get_running_loop()
         with ProcessPoolExecutor() as pool:
-            await loop.run_in_executor(pool, compute, center, payloaddata)
+            await loop.run_in_executor(pool, compute, payloaddata)
 
 
 if __name__ == "__main__":
