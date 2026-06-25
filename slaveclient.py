@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 from multiprocessing.connection import Connection
 import warnings
 import websockets, asyncio, json
@@ -32,6 +33,7 @@ def compute(center: complex, payloaddata: dict, transmitter: Connection, pid: in
     mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, payloaddata["max_iteration"])
     result: list[Image.Image] = []
     segmentlen = len(payloaddata["segment"])
+
     for index, width in enumerate(payloaddata["segment"], start=1):
         img = Image.new("RGB", payloaddata["resolution"], 1)
         width: float
@@ -83,13 +85,13 @@ def run_process(transmitter: Connection):
 
 if __name__ == "__main__":
     print(f"Spawning {N_PROCESSES} processes.")
-    processes: set[Process] = set()
+    processes: list[Process] = []
     transmitter, receiver = Pipe()
     for _ in range(N_PROCESSES):
 
         process = Process(target=run_process, args=(transmitter,))
         process.start()
-        processes.add(process)
+        processes.append(process)
 
     while len(processes) > 0:
         if receiver.poll() is True:
