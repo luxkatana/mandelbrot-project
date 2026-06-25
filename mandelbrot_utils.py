@@ -12,7 +12,7 @@ colormap = matplotlib.cm.get_cmap("viridis").colors
 MAX_ITERATION: int = 256
 
 FPS = 30
-TOTAL_SECONDS = 60
+TOTAL_SECONDS = 10
 WIDTH = 512
 HEIGHT = 512
 N_SEGMENTS: int = 14

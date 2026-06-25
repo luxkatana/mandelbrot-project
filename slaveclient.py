@@ -17,7 +17,7 @@ FTP_PORT = 3000
 N_PROCESSES: int = 5
 
 
-def m_paint(payloaddata: dict, width: float) -> Image.Image:
+def m_paint(payloaddata: dict, width: float) -> tuple[Image.Image, float]:
     mandelbrotset = mandelbrot_rust.MandelbrotSet(1000, payloaddata["max_iteration"])
     img = Image.new("RGB", payloaddata["resolution"], 1)
     viewport = Viewport(
@@ -26,31 +26,34 @@ def m_paint(payloaddata: dict, width: float) -> Image.Image:
         width=width,
     )
     mandelbrot_utils.paint(mandelbrotset, viewport, mandelbrot_utils.palette)
-    return img
+    return (img, width)
 
 
 def compute(payloaddata: dict):
     painting_modified = partial(m_paint, payloaddata)
+    ftpclient = FTP()
+    ftpclient.connect(MASTER[0], FTP_PORT)
+    ftpclient.login(payloaddata["user"], payloaddata["password"])
 
     with multiprocessing.Pool(N_PROCESSES) as pool:
         print(f"Spawning {N_PROCESSES} processses")
         begin = perf_counter()
-        result = pool.map(
+        for frame, width in pool.imap_unordered(
             painting_modified,
             payloaddata["segment"],
-        )
+        ):
+            with BytesIO() as f:
+                frame.save(f, format="JPEG")
+                f.seek(0)
+                ftpclient.storbinary(f"STOR {width}.jpg", f)
         end = perf_counter()
         print(f"Time taken for computation: {(end - begin):.2f} seconds")
 
-    ftpclient = FTP()
-    ftpclient.connect(MASTER[0], FTP_PORT)
-    ftpclient.login(payloaddata["user"], payloaddata["password"])
-    print("Sending files with ftp...")
-    for index, img in progressbar.progressbar(enumerate(result)):
-        with BytesIO() as f:
-            img.save(f, format="JPEG")
-            f.seek(0)
-            ftpclient.storbinary(f"STOR {payloaddata['segment'][index]}.jpg", f)
+    # for index, img in progressbar.progressbar(enumerate(result)):
+    #     with BytesIO() as f:
+    #         img.save(f, format="JPEG")
+    #         f.seek(0)
+    #         ftpclient.storbinary(f"STOR {payloaddata['segment'][index]}.jpg", f)
     ftpclient.close()
 
 
